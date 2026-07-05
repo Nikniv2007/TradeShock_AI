@@ -265,6 +265,10 @@ This project is built to demonstrate **end-to-end product ownership** of an AI-p
 - **Testing + evals** for both logic and AI behavior
 - System ownership and business/finance product thinking
 
+## License
+
+Released under the [MIT License](LICENSE). © 2026 Nikniv2007.
+
 ---
 
 <sub>TradeShock AI — The AI Tariff, Supplier, and Margin War Room. All demo data is fictional. Not legal, customs, tax, accounting, investment, or financial advice.</sub>
