@@ -208,6 +208,11 @@ export default function DataRoomPage() {
               browser and stored only in this browser's local storage; they are not a system of record. TradeShock AI provides
               informational analysis only, not legal, customs, tax, accounting, or financial advice.
             </DisclaimerBox>
+            <DisclaimerBox variant="privacy">
+              Privacy: imported data lives only in your browser in demo mode and is never uploaded unless you configure Supabase.
+              When live AI is enabled, only the necessary computed context — not your full dataset — is sent to the AI provider.
+              Use “Export dataset (JSON)” to back up, and “Reset all data” to clear this browser at any time.
+            </DisclaimerBox>
           </div>
         </div>
       </div>

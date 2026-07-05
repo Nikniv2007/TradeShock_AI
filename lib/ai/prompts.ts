@@ -30,6 +30,10 @@ export const DISCLAIMERS: Record<string, string> = {
     "Generated clauses, customer notices, and supplier scripts are drafting support only. Have an attorney review before use.",
   fx:
     "This is not investment or hedging advice. Consult a qualified financial professional before making currency hedging or financing decisions.",
+  privacy:
+    "Your data stays in your browser in demo mode. Nothing is uploaded to a server unless you configure Supabase. Do not upload sensitive or regulated business data to any demo deployment. When live AI is enabled, only the necessary computed context — not your full dataset — is sent to the AI provider.",
+  demo:
+    "All demo data is fictional and for demonstration purposes only. Sample data is clearly separated from any data you import.",
 };
 
 export function buildUserPrompt(action: AIActionKind, context: Record<string, unknown>): string {

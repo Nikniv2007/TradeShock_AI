@@ -155,7 +155,12 @@ export default function LandingPage() {
       </section>
 
       <footer className="border-t border-white/[0.06] py-8 text-center text-xs text-ink-faint">
-        TradeShock AI — The AI Tariff, Supplier, and Margin War Room · Demo build
+        <p className="mx-auto max-w-2xl px-6 leading-relaxed">
+          Privacy: in demo mode your data stays in your browser — nothing is uploaded to a server unless you configure
+          Supabase. When live AI is enabled, only the necessary computed context (not your full dataset) is sent to the
+          AI provider. Do not upload sensitive or regulated business data to a demo deployment.
+        </p>
+        <p className="mt-3">TradeShock AI — The AI Tariff, Supplier, and Margin War Room · Demo build</p>
       </footer>
     </div>
   );

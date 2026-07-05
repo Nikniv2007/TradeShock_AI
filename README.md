@@ -135,7 +135,7 @@ npm install
 cp .env.example .env.local   # optional — app works with no keys
 npm run dev                  # http://localhost:3000
 
-npm run test                 # 47 unit tests (finance, risk, CSV, AI schemas, scenarios)
+npm run test                 # 61 unit tests (finance, risk, CSV, AI schemas, scenarios)
 npm run evals                # 29 AI/logic safety + correctness evals
 npm run build                # production build
 ```
@@ -214,7 +214,7 @@ The importer surfaces raw + parsed previews, required-column validation, data-qu
 - Pricing engine **varies increases per customer** (not a flat rate) and is schema-valid.
 - Every AI output **validates its Zod schema** and includes **confidence + assumptions**.
 
-Current suite: **47 unit tests + 29 evals, all passing.**
+Current suite: **61 unit tests + 57 evals, all passing.** Evals also assert the AI makes no guarantee/authority claims, never provides legal/customs/tax advice, treats deterministic calculations as ground truth, and that margin rescue offers multiple options.
 
 ## 16. Safety & Compliance Disclaimers
 
@@ -224,7 +224,22 @@ Current suite: **47 unit tests + 29 evals, all passing.**
 - **Contract:** Generated clauses, notices, and scripts are drafting support only — have an attorney review before use.
 - **Demo data:** All demo data is fictional and for demonstration purposes only.
 
-**Security:** local demo mode requires no sensitive data; a warning precedes any real-data upload; no hardcoded keys; AI calls send only necessary context. Supabase Row-Level Security should be enabled per-tenant in a production deployment.
+### Security & data handling
+
+- **Local demo mode** — no sensitive data required; the full portfolio is fictional and lives only in your browser's local storage.
+- **Clear demo/real separation** — a persistent Demo Mode badge, a `hasData` gate, and upload warnings distinguish sample data from anything you import.
+- **Privacy** — in demo mode nothing leaves the browser. When live AI is enabled, only the **necessary computed context** (not your full dataset) is sent to the provider. A user-facing privacy disclaimer appears on the landing page, in the Data Room, and in Settings → Account & Privacy.
+- **No hardcoded secrets** — AI keys are read **server-side only** in `app/api/ai/route.ts`; never exposed to the client.
+- **Placeholder auth, Supabase-ready** — `lib/auth/mockAuth.ts` provides a `getSession()`/`can()` structure that mirrors a Supabase session so real auth is a drop-in. Role checks (`approve_po`, `edit`, `view`) are already stubbed.
+- **Reset & export** — one-click **Reset all data** and **Export dataset (JSON)** in the Data Room and Settings.
+- **Supabase Row-Level Security** — for a production, multi-tenant deployment, enable RLS on every table and scope rows by `companyId`/`auth.uid()`. Example policy:
+  ```sql
+  alter table products enable row level security;
+  create policy "tenant can read own products"
+    on products for select
+    using (company_id = auth.jwt() ->> 'company_id');
+  ```
+  Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only; never ship it to the browser.
 
 ## 17. Roadmap
 

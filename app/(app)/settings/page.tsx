@@ -9,7 +9,9 @@ import {
 import { fmtPercent } from "@/lib/utils/formatters";
 import type { Company, Currency, RiskLevel } from "@/lib/types";
 import { RISK_META } from "@/lib/utils/formatters";
-import { Settings as SettingsIcon, Save, RotateCcw, Cpu, Database, ShieldCheck, Check } from "lucide-react";
+import { DISCLAIMERS } from "@/lib/ai/prompts";
+import { getSession } from "@/lib/auth/mockAuth";
+import { Settings as SettingsIcon, Save, RotateCcw, Cpu, Database, ShieldCheck, Check, UserCircle, Lock } from "lucide-react";
 
 const CURRENCIES: Currency[] = ["USD", "EUR", "CNY", "VND", "MXN", "INR", "TRY"];
 const RISK_TOLERANCE: Company["riskTolerance"][] = ["conservative", "balanced", "aggressive"];
@@ -40,6 +42,7 @@ export default function SettingsPage() {
   const [aiStatus, setAiStatus] = React.useState<AIStatus | null>(null);
   const [aiError, setAiError] = React.useState(false);
   const [acks, setAcks] = React.useState<boolean[]>(ACK_ITEMS.map(() => false));
+  const session = getSession();
 
   React.useEffect(() => {
     setMounted(true);
@@ -149,6 +152,25 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2.5"><Database className="h-4 w-4 text-ink-faint" /><span className="text-sm text-ink">Supabase</span></div>
               <StatusBadge tone={supabaseUrl ? "emerald" : "neutral"}>{supabaseUrl ? "Configured" : "Not connected — using local store"}</StatusBadge>
             </div>
+          </div>
+        </Card>
+
+        {/* Account & Privacy */}
+        <Card>
+          <SectionTitle icon={UserCircle} title="Account & Privacy" subtitle="Placeholder session — auth-ready for Supabase." />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-base-900/50 px-3 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slateaccent to-cyan text-[11px] font-bold text-white">{session.user.avatarInitials}</div>
+                <div>
+                  <p className="text-sm text-ink">{session.user.name}</p>
+                  <p className="text-[11px] text-ink-faint">{session.user.email} · role: {session.user.role}</p>
+                </div>
+              </div>
+              <StatusBadge tone="cyan"><Lock className="h-3 w-3" /> {session.provider === "demo" ? "Demo session" : "Authenticated"}</StatusBadge>
+            </div>
+            <p className="text-xs text-ink-faint">Authentication is a placeholder. Wire Supabase Auth to gate real workspaces; role-based checks (approve PO, edit) are already stubbed in <span className="font-mono text-ink-muted">lib/auth/mockAuth.ts</span>.</p>
+            <DisclaimerBox variant="privacy">{DISCLAIMERS.privacy}</DisclaimerBox>
           </div>
         </Card>
 

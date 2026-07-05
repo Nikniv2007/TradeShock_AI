@@ -272,8 +272,8 @@ export function ErrorState({ message }: { message: string }) {
 }
 
 // ─── Disclaimer ───
-export function DisclaimerBox({ children, variant = "general" }: { children?: React.ReactNode; variant?: "general" | "hts" | "financial" | "contract" | "fx" }) {
-  const tone = variant === "hts" ? "border-amber/30 bg-amber/5 text-amber" : "border-white/10 bg-base-800/60 text-ink-faint";
+export function DisclaimerBox({ children, variant = "general" }: { children?: React.ReactNode; variant?: "general" | "hts" | "financial" | "contract" | "fx" | "privacy" | "demo" }) {
+  const tone = variant === "hts" ? "border-amber/30 bg-amber/5 text-amber" : variant === "privacy" ? "border-cyan/25 bg-cyan/5 text-ink-muted" : "border-white/10 bg-base-800/60 text-ink-faint";
   return (
     <div className={cn("flex items-start gap-2.5 rounded-lg border p-3 text-[11px] leading-relaxed", tone)}>
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
