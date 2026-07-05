@@ -4,15 +4,19 @@ import * as React from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useStore } from "@/lib/store/useStore";
 import {
-  Card, SectionTitle, Button, MetricCard, Field, Select, StatusBadge, DisclaimerBox, EmptyState,
+  Card, SectionTitle, Button, MetricCard, Field, Select, DisclaimerBox, EmptyState,
 } from "@/components/ui/primitives";
 import { parseCSV, REQUIRED_COLUMNS, type EntityKind, type ParseResult } from "@/lib/data/csvParser";
 import { SAMPLE_TEMPLATES, TEMPLATE_LABELS, downloadText, downloadJSON } from "@/lib/data/templates";
+import { CSVUploader } from "@/components/data/CSVUploader";
+import { DataPreviewTable } from "@/components/data/DataPreviewTable";
+import { ValidationSummary } from "@/components/data/ValidationSummary";
+import { SampleTemplateButton } from "@/components/data/SampleTemplateButton";
 import { num } from "@/lib/utils/validators";
-import { fmtNumber, titleCase } from "@/lib/utils/formatters";
+import { fmtNumber } from "@/lib/utils/formatters";
 import type { Product, Customer } from "@/lib/types";
 import {
-  Database, Upload, FileDown, RotateCcw, DownloadCloud, CheckCircle2, AlertTriangle, FileWarning, Table,
+  Database, Upload, FileDown, RotateCcw, DownloadCloud, CheckCircle2, Table,
 } from "lucide-react";
 
 const ENTITY_KINDS: EntityKind[] = ["products", "suppliers", "purchaseOrders", "customers", "bom"];
@@ -35,27 +39,11 @@ export default function DataRoomPage() {
   const [mounted, setMounted] = React.useState(false);
   const [kind, setKind] = React.useState<EntityKind>("products");
   const [result, setResult] = React.useState<ParseResult | null>(null);
-  const [fileName, setFileName] = React.useState("");
   const [importNote, setImportNote] = React.useState("");
-  const fileRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => setMounted(true), []);
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-    setImportNote("");
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result ?? "");
-      setResult(parseCSV(text, kind));
-    };
-    reader.readAsText(file);
-  }
-
   function loadSampleIntoParser() {
-    setFileName(`${kind}-sample.csv`);
     setImportNote("");
     setResult(parseCSV(SAMPLE_TEMPLATES[kind], kind));
   }
@@ -122,9 +110,6 @@ export default function DataRoomPage() {
     ? { products: dataset.products.length, suppliers: dataset.suppliers.length, purchaseOrders: dataset.purchaseOrders.length, customers: dataset.customers.length, bom: dataset.boms.length }
     : { products: 0, suppliers: 0, purchaseOrders: 0, customers: 0, bom: 0 };
 
-  const preview = result?.rawRows.slice(0, 5) ?? [];
-  const previewCols = preview.length > 0 ? Object.keys(preview[0]) : [];
-
   return (
     <>
       <PageHeader
@@ -154,7 +139,7 @@ export default function DataRoomPage() {
           {/* Upload + results */}
           <div className="space-y-6">
             <Card>
-              <SectionTitle icon={Upload} title="Upload a CSV" subtitle="Choose the entity type, then select a file. Parsing and validation happen instantly in your browser." />
+              <SectionTitle icon={Upload} title="Upload a CSV" subtitle="Choose the entity type, then drop or select a file. Parsing and validation happen instantly in your browser." />
               <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
                 <Field label="Entity type">
                   <Select value={kind} onChange={(e) => { setKind(e.target.value as EntityKind); setResult(null); setImportNote(""); }}>
@@ -162,13 +147,12 @@ export default function DataRoomPage() {
                   </Select>
                 </Field>
                 <Field label="CSV file">
-                  <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onFile} className="input cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-base-700 file:px-3 file:py-1 file:text-ink" />
+                  <CSVUploader kind={kind} onParsed={(r) => { setResult(r); setImportNote(""); }} />
                 </Field>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button onClick={loadSampleIntoParser}><Table className="h-3.5 w-3.5" /> Try with sample {TEMPLATE_LABELS[kind]}</Button>
-                <Button onClick={() => downloadText(`${kind}-template.csv`, SAMPLE_TEMPLATES[kind])}><FileDown className="h-3.5 w-3.5" /> Download {TEMPLATE_LABELS[kind]} template</Button>
-                {fileName && <span className="text-xs text-ink-faint">Loaded: {fileName}</span>}
+                <SampleTemplateButton kind={kind} />
               </div>
               <p className="mt-3 text-xs text-ink-faint">Required columns: <span className="font-mono text-ink-muted">{REQUIRED_COLUMNS[kind].join(", ")}</span></p>
             </Card>
@@ -179,82 +163,19 @@ export default function DataRoomPage() {
 
             {result && (
               <>
-                {/* Import summary */}
+                {/* Import summary + validation */}
                 <Card>
                   <SectionTitle icon={CheckCircle2} title="Import Summary" subtitle={`Parsed ${result.summary.total} rows for ${TEMPLATE_LABELS[result.kind]}.`}
                     right={<Button variant="primary" onClick={importIntoState} disabled={result.validRows.length === 0}><DownloadCloud className="h-3.5 w-3.5" /> Import into local state</Button>} />
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <MetricCard label="Total Rows" value={fmtNumber(result.summary.total)} />
-                    <MetricCard label="Valid" value={fmtNumber(result.summary.valid)} tone="emerald" />
-                    <MetricCard label="Failed" value={fmtNumber(result.summary.failed)} tone={result.summary.failed > 0 ? "danger" : "emerald"} />
-                    <MetricCard label="Warnings" value={fmtNumber(result.summary.warnings)} tone={result.summary.warnings > 0 ? "amber" : "emerald"} />
-                  </div>
-                  {result.missingColumns.length > 0 && (
-                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>Missing required columns: <span className="font-mono">{result.missingColumns.join(", ")}</span>. Add them and re-upload.</span>
-                    </div>
-                  )}
+                  <ValidationSummary result={result} />
                   {importNote && <p className="mt-3 text-xs text-emerald">{importNote}</p>}
                 </Card>
 
                 {/* Raw preview */}
                 <Card>
-                  <SectionTitle icon={Table} title="Raw Preview" subtitle={`First ${preview.length} rows as parsed from the file.`} />
-                  {previewCols.length === 0 ? <p className="text-sm text-ink-faint">No rows parsed.</p> : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[560px] text-xs">
-                        <thead><tr className="border-b border-white/[0.08]">{previewCols.map((c) => <th key={c} className="stat-label px-2.5 py-2 text-left">{c}</th>)}</tr></thead>
-                        <tbody>
-                          {preview.map((r, i) => (
-                            <tr key={i} className="border-b border-white/[0.04]">{previewCols.map((c) => <td key={c} className="px-2.5 py-1.5 text-ink-muted">{r[c]}</td>)}</tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  <SectionTitle icon={Table} title="Raw Preview" subtitle={`First ${Math.min(5, result.rawRows.length)} rows as parsed from the file.`} />
+                  <DataPreviewTable rows={result.rawRows} max={5} />
                 </Card>
-
-                {/* Data quality issues */}
-                <Card>
-                  <SectionTitle icon={FileWarning} title="Data Quality Issues" subtitle={`${result.issues.length} issues detected.`} />
-                  {result.issues.length === 0 ? (
-                    <p className="text-sm text-emerald">No data-quality issues found.</p>
-                  ) : (
-                    <div className="max-h-72 overflow-auto rounded-lg border border-white/[0.06]">
-                      <table className="w-full min-w-[520px] text-xs">
-                        <thead className="sticky top-0 bg-base-850"><tr>
-                          <th className="stat-label px-2.5 py-2 text-left">Row</th>
-                          <th className="stat-label px-2.5 py-2 text-left">Field</th>
-                          <th className="stat-label px-2.5 py-2 text-left">Message</th>
-                          <th className="stat-label px-2.5 py-2 text-left">Severity</th>
-                        </tr></thead>
-                        <tbody>
-                          {result.issues.map((iss, i) => (
-                            <tr key={i} className="border-t border-white/[0.04]">
-                              <td className="px-2.5 py-1.5 tabular-nums text-ink-muted">{iss.row}</td>
-                              <td className="px-2.5 py-1.5 font-mono text-ink-muted">{iss.field}</td>
-                              <td className="px-2.5 py-1.5 text-ink-muted">{iss.message}</td>
-                              <td className="px-2.5 py-1.5"><StatusBadge tone={iss.severity === "error" ? "danger" : "amber"}>{titleCase(iss.severity)}</StatusBadge></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </Card>
-
-                {/* Failed rows */}
-                {result.failedRows.length > 0 && (
-                  <Card>
-                    <SectionTitle icon={AlertTriangle} title="Failed Rows" subtitle={`${result.failedRows.length} rows will not be imported.`} />
-                    <ul className="space-y-1 text-xs text-ink-muted">
-                      {result.failedRows.map((f) => (
-                        <li key={f.row} className="flex gap-2"><span className="font-mono text-danger">Row {f.row}</span>{f.reason}</li>
-                      ))}
-                    </ul>
-                  </Card>
-                )}
               </>
             )}
           </div>

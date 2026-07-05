@@ -53,6 +53,10 @@ export function parseCSV(text: string, kind: EntityKind): ParseResult {
   const failedRows: { row: number; reason: string }[] = [];
   const validRows: Record<string, string>[] = [];
 
+  // Duplicate detection (§10): duplicate SKU and duplicate PO line.
+  const seenSku = new Map<string, number>();
+  const seenPoLine = new Map<string, number>();
+
   rawRows.forEach((row, idx) => {
     const rowNum = idx + 1;
     let rowFailed = false;
@@ -74,6 +78,12 @@ export function parseCSV(text: string, kind: EntityKind): ParseResult {
       const tm = num(row.targetMargin);
       if (Number.isNaN(tm) || tm < 0 || tm >= 1) issues.push({ row: rowNum, field: "targetMargin", message: "Target margin should be between 0 and 1 (e.g. 0.35).", severity: "warning" });
       if (row.currentTariffRate === undefined || row.currentTariffRate === "") issues.push({ row: rowNum, field: "currentTariffRate", message: "Tariff rate missing — defaults to 0.", severity: "warning" });
+      // Duplicate SKU (§10)
+      const sku = (row.sku ?? "").trim();
+      if (sku) {
+        if (seenSku.has(sku)) issues.push({ row: rowNum, field: "sku", message: `Duplicate SKU "${sku}" (first seen on row ${seenSku.get(sku)}).`, severity: "warning" });
+        else seenSku.set(sku, rowNum);
+      }
     }
     if (kind === "suppliers") {
       if (!row.averageLeadTimeDays || num(row.averageLeadTimeDays) <= 0) issues.push({ row: rowNum, field: "averageLeadTimeDays", message: "Supplier without lead time.", severity: "warning" });
@@ -81,10 +91,30 @@ export function parseCSV(text: string, kind: EntityKind): ParseResult {
     if (kind === "purchaseOrders") {
       if (num(row.quantity) <= 0) issues.push({ row: rowNum, field: "quantity", message: "Zero or negative quantity.", severity: "error" }), (rowFailed = true);
       if (!row.expectedArrivalDate) issues.push({ row: rowNum, field: "expectedArrivalDate", message: "PO missing arrival date.", severity: "warning" });
+      // Duplicate PO number + SKU line (§10). A shared poNumber across rows is
+      // valid (multi-line PO); the same (poNumber, sku) twice is a duplicate line.
+      const key = `${(row.poNumber ?? "").trim()}::${(row.sku ?? "").trim()}`;
+      if (row.poNumber && row.sku) {
+        if (seenPoLine.has(key)) issues.push({ row: rowNum, field: "poNumber", message: `Duplicate PO line — ${row.poNumber} / ${row.sku} already on row ${seenPoLine.get(key)}.`, severity: "warning" });
+        else seenPoLine.set(key, rowNum);
+      }
     }
     if (kind === "customers") {
-      const gm = num(row.grossMargin);
-      if (Number.isNaN(gm) || gm < 0 || gm >= 1) issues.push({ row: rowNum, field: "grossMargin", message: "Gross margin should be 0..1.", severity: "warning" });
+      // Customer without margin data (§10)
+      if (row.grossMargin === undefined || row.grossMargin === "") {
+        issues.push({ row: rowNum, field: "grossMargin", message: "Customer without margin data.", severity: "warning" });
+      } else {
+        const gm = num(row.grossMargin);
+        if (Number.isNaN(gm) || gm < 0 || gm >= 1) issues.push({ row: rowNum, field: "grossMargin", message: "Gross margin should be 0..1.", severity: "warning" });
+      }
+    }
+    if (kind === "bom") {
+      // BOM component without quantity (§10)
+      if (!row.quantityPerFinishedGood || num(row.quantityPerFinishedGood) <= 0) {
+        issues.push({ row: rowNum, field: "quantityPerFinishedGood", message: "BOM component without a valid quantity per finished good.", severity: "error" });
+        rowFailed = true;
+      }
+      if (num(row.unitCost) < 0) issues.push({ row: rowNum, field: "unitCost", message: "Negative component cost.", severity: "error" }), (rowFailed = true);
     }
 
     if (rowFailed) failedRows.push({ row: rowNum, reason: issues.filter((i) => i.row === rowNum && i.severity === "error").map((i) => i.message).join(" ") });

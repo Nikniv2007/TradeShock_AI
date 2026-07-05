@@ -5,9 +5,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NoDataGate } from "@/components/layout/NoDataGate";
 import { useStore, computePortfolioStatus } from "@/lib/store/useStore";
 import {
-  Card, SectionTitle, MetricCard, Button, RiskBadge, StatusBadge,
-  DisclaimerBox, LoadingState,
+  Card, SectionTitle, Button, DisclaimerBox, LoadingState,
 } from "@/components/ui/primitives";
+import { ReportHeader } from "@/components/reports/ReportHeader";
+import { ReportMetricGrid } from "@/components/reports/ReportMetricGrid";
+import { ReportActionPlan } from "@/components/reports/ReportActionPlan";
+import { ReportPreview } from "@/components/reports/ReportPreview";
+import { PrintButton } from "@/components/reports/PrintButton";
+import { ExportJSONButton, ExportCSVButton, CopyTextButton } from "@/components/reports/ExportButton";
 import { MarginExposureChart, SupplierRiskMatrix, HBarChart, ScenarioImpactChart, CostBreakdownDonut, CHART_COLORS } from "@/components/charts";
 import { runScenario } from "@/lib/finance/scenarioEngine";
 import { scanPurchaseOrder } from "@/lib/finance/poRisk";
@@ -16,13 +21,12 @@ import { analyzeBOM } from "@/lib/finance/bomCalculations";
 import { modelFXFreight } from "@/lib/finance/fxFreight";
 import { analyzePortfolioPricing } from "@/lib/finance/customerPricing";
 import { requestAI } from "@/lib/ai/actions";
-import { downloadJSON, downloadText, toCSV } from "@/lib/data/templates";
 import { fmtCurrency, fmtPercent, fmtNumber, titleCase } from "@/lib/utils/formatters";
-import type { Dataset, ExecutiveBrief, RiskLevel } from "@/lib/types";
+import type { Dataset, ExecutiveBrief } from "@/lib/types";
 import type { PortfolioStatus } from "@/lib/store/useStore";
 import {
   FileText, Landmark, TrendingDown, GitCompareArrows, PackageOpen, ShieldAlert, Boxes,
-  DollarSign, Users2, LifeBuoy, CalendarClock, Printer, Copy, Download, FileJson, Sparkles,
+  DollarSign, Users2, LifeBuoy, CalendarClock, Sparkles,
   ClipboardList, type LucideIcon,
 } from "lucide-react";
 
@@ -91,7 +95,6 @@ function ReportsBody() {
   const [generatedAt, setGeneratedAt] = React.useState("");
   const [ai, setAi] = React.useState<{ data: ExecutiveBrief; source: string; warning?: string } | null>(null);
   const [loadingAi, setLoadingAi] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
 
   const model = React.useMemo(() => buildReport(selectedId, dataset, status), [selectedId, dataset, status]);
 
@@ -140,25 +143,11 @@ function ReportsBody() {
     return lines.join("\n");
   }
 
-  async function copyReport() {
-    try {
-      await navigator.clipboard.writeText(reportText());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard unavailable */ }
-  }
-
-  function exportJSON() {
-    downloadJSON(`${selectedId}-report.json`, {
-      report: model.title, company: dataset.company.name, generatedAt, demoData: true,
-      summary: model.summary, metrics: model.metrics, actions: model.actions,
-      assumptions: model.assumptions, confidence: model.confidence, table: { columns: model.columns, rows: model.rows },
-    });
-  }
-
-  function exportCSV() {
-    downloadText(`${selectedId}-table.csv`, toCSV(model.rows));
-  }
+  const exportPayload = {
+    report: model.title, company: dataset.company.name, generatedAt, demoData: true,
+    summary: model.summary, metrics: model.metrics, actions: model.actions,
+    assumptions: model.assumptions, confidence: model.confidence, table: { columns: model.columns, rows: model.rows },
+  };
 
   return (
     <div className="space-y-6">
@@ -189,30 +178,23 @@ function ReportsBody() {
 
       {/* Toolbar */}
       <div className="no-print flex flex-wrap items-center gap-2">
-        <Button variant="primary" onClick={() => window.print()}><Printer className="h-3.5 w-3.5" /> Print to PDF</Button>
-        <Button onClick={copyReport}><Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy report text"}</Button>
-        <Button onClick={exportJSON}><FileJson className="h-3.5 w-3.5" /> Export JSON</Button>
-        <Button onClick={exportCSV}><Download className="h-3.5 w-3.5" /> Download CSV</Button>
+        <PrintButton />
+        <CopyTextButton text={reportText()} />
+        <ExportJSONButton data={exportPayload} filename={`${selectedId}-report.json`} />
+        <ExportCSVButton rows={model.rows} filename={`${selectedId}-table.csv`} />
         <Button variant="amber" onClick={generateNarrative} disabled={loadingAi}><Sparkles className="h-3.5 w-3.5" /> {loadingAi ? "Writing…" : ai ? "Regenerate narrative" : "Generate AI narrative"}</Button>
       </div>
 
       {/* Report page */}
-      <div className="print-page card space-y-6 p-6">
+      <ReportPreview>
         {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-ink">{model.title}</h2>
-            <p className="mt-1 text-sm text-ink-muted">{dataset.company.name} · Prepared by TradeShock AI</p>
-            <p className="mt-0.5 text-xs text-ink-faint">Generated {generatedAt || "…"}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <StatusBadge tone="amber">DEMO DATA</StatusBadge>
-            <div className="flex items-center gap-2">
-              <RiskBadge level={status.status} />
-              <span className="text-xs text-ink-faint">{Math.round(model.confidence * 100)}% confidence</span>
-            </div>
-          </div>
-        </div>
+        <ReportHeader
+          title={model.title}
+          companyName={dataset.company.name}
+          generatedAt={generatedAt}
+          demo
+          confidence={model.confidence}
+        />
 
         {/* Executive summary */}
         <div>
@@ -221,11 +203,7 @@ function ReportsBody() {
         </div>
 
         {/* Metrics */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {model.metrics.map((m) => (
-            <MetricCard key={m.label} label={m.label} value={m.value} sub={m.sub} tone={m.tone ?? "neutral"} />
-          ))}
-        </div>
+        <ReportMetricGrid metrics={model.metrics} />
 
         {/* Chart */}
         <Card>
@@ -245,14 +223,7 @@ function ReportsBody() {
 
         {/* Recommended actions */}
         <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="stat-label mb-2">Recommended Actions</h3>
-            <ol className="space-y-1.5 text-sm text-ink-muted">
-              {model.actions.map((a, i) => (
-                <li key={i} className="flex gap-2"><span className="font-mono text-slateaccent">{i + 1}.</span>{a}</li>
-              ))}
-            </ol>
-          </div>
+          <ReportActionPlan actions={model.actions} />
           <div>
             <h3 className="stat-label mb-2">Assumptions</h3>
             <ul className="space-y-1.5 text-xs text-ink-muted">
@@ -264,7 +235,7 @@ function ReportsBody() {
         </div>
 
         <DisclaimerBox variant={model.disclaimerVariant}>{model.disclaimerText}</DisclaimerBox>
-      </div>
+      </ReportPreview>
     </div>
   );
 }

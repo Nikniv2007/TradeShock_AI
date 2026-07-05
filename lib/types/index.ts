@@ -145,6 +145,36 @@ export interface CostShareItem {
     | "fees";
 }
 
+// Persistence-shaped record of a saved landed-cost calculation (§12.4).
+// The live calculator uses LandedCostInput/LandedCostResult; this is the
+// Supabase-ready row you would store.
+export interface LandedCostCalculation {
+  id: string;
+  companyId: string;
+  productId: string;
+  supplierId: string;
+  incoterm: Incoterm;
+  supplierUnitCost: number;
+  quantity: number;
+  freightTotal: number;
+  insuranceTotal: number;
+  brokerFees: number;
+  portFees: number;
+  handlingFees: number;
+  warehouseFees: number;
+  domesticDeliveryFees: number;
+  inspectionFees: number;
+  otherFees: number;
+  tariffRate: number;
+  additionalTariffRate: number;
+  landedCostPerUnit: number;
+  totalLandedCost: number;
+  grossMargin: number;
+  requiredPrice: number;
+  marginGap: number;
+  createdAt: string;
+}
+
 export interface Scenario {
   id: string;
   name: string;
@@ -165,6 +195,10 @@ export interface Scenario {
 }
 
 export interface ScenarioResult {
+  // Optional persistence fields (§12.6) — populated when a result is stored.
+  id?: string;
+  scenarioId?: string;
+  createdAt?: string;
   productId: string;
   sku: string;
   name: string;

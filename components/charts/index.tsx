@@ -204,3 +204,50 @@ export function MarginHeatmap({
     </div>
   );
 }
+
+// ─── FX sensitivity (margin vs FX rate / shock) ───
+export function FXSensitivityChart({ data }: { data: { rate: number; margin: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 24 }}>
+        <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
+        <XAxis dataKey="rate" tick={{ fill: CHART_COLORS.axis, fontSize: 11 }} label={{ value: "FX rate / shock", fill: CHART_COLORS.axis, fontSize: 10, position: "bottom" }} />
+        <YAxis tick={{ fill: CHART_COLORS.axis, fontSize: 11 }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+        <Tooltip {...tooltipStyle} formatter={(v: number) => fmtPercent(v)} labelFormatter={(l) => `Rate: ${l}`} />
+        <ReferenceLine y={0} stroke={CHART_COLORS.danger} strokeDasharray="3 3" />
+        <Line name="Margin" dataKey="margin" stroke={CHART_COLORS.cyan} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ─── Freight shock (margin vs freight shock %) ───
+export function FreightShockChart({ data }: { data: { shock: number; margin: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 24 }}>
+        <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
+        <XAxis dataKey="shock" tick={{ fill: CHART_COLORS.axis, fontSize: 11 }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} label={{ value: "Freight shock %", fill: CHART_COLORS.axis, fontSize: 10, position: "bottom" }} />
+        <YAxis tick={{ fill: CHART_COLORS.axis, fontSize: 11 }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+        <Tooltip {...tooltipStyle} formatter={(v: number) => fmtPercent(v)} labelFormatter={(l: number) => `Freight shock: ${(l * 100).toFixed(0)}%`} />
+        <ReferenceLine y={0} stroke={CHART_COLORS.danger} strokeDasharray="3 3" />
+        <Line name="Margin" dataKey="margin" stroke={CHART_COLORS.amber} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ─── Country exposure (horizontal bar of landed-cost exposure by country) ───
+export function CountryExposureChart({ data }: { data: { country: string; exposure: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(180, data.length * 34)}>
+      <BarChart layout="vertical" data={data} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+        <CartesianGrid stroke={CHART_COLORS.grid} horizontal={false} />
+        <XAxis type="number" tick={{ fill: CHART_COLORS.axis, fontSize: 11 }} tickFormatter={(v) => fmtCurrency(v, "USD", { compact: true, decimals: 0 })} />
+        <YAxis type="category" dataKey="country" tick={{ fill: CHART_COLORS.axis, fontSize: 11 }} width={130} />
+        <Tooltip {...tooltipStyle} formatter={(v: number) => fmtCurrency(v)} />
+        <Bar dataKey="exposure" fill={CHART_COLORS.slate} radius={[0, 3, 3, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

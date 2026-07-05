@@ -39,6 +39,37 @@ PO-1,Acme,TS-1,0,5,2026-08-01`;
     expect(r.summary.failed).toBe(1);
   });
 
+  it("flags duplicate SKUs as a warning", () => {
+    const csv = `sku,name,category,supplierName,countryOfOrigin,supplierUnitCost,sellingPrice,targetMargin
+TS-1,Widget,Tools,Acme,China,5,20,0.3
+TS-1,Widget Dupe,Tools,Acme,China,5,20,0.3`;
+    const r = parseCSV(csv, "products");
+    expect(r.issues.some((i) => i.field === "sku" && /Duplicate SKU/.test(i.message))).toBe(true);
+  });
+
+  it("flags duplicate PO lines (poNumber+sku)", () => {
+    const csv = `poNumber,supplierName,sku,quantity,unitCost,expectedArrivalDate
+PO-1,Acme,TS-1,100,5,2026-08-01
+PO-1,Acme,TS-1,100,5,2026-08-01`;
+    const r = parseCSV(csv, "purchaseOrders");
+    expect(r.issues.some((i) => /Duplicate PO line/.test(i.message))).toBe(true);
+  });
+
+  it("warns on customer without margin data", () => {
+    const csv = `name,type,annualRevenue,grossMargin,paymentTerms
+Acme,retail,100000,,net_30`;
+    const r = parseCSV(csv, "customers");
+    expect(r.issues.some((i) => i.field === "grossMargin" && /without margin data/.test(i.message))).toBe(true);
+  });
+
+  it("fails BOM components without a quantity", () => {
+    const csv = `finishedSku,componentName,supplierName,countryOfOrigin,unitCost,quantityPerFinishedGood
+TS-1,Bracket,Acme,China,2.5,0`;
+    const r = parseCSV(csv, "bom");
+    expect(r.summary.failed).toBe(1);
+    expect(r.issues.some((i) => i.field === "quantityPerFinishedGood")).toBe(true);
+  });
+
   it("validates every entity template round-trips its required columns", () => {
     (Object.keys(SAMPLE_TEMPLATES) as (keyof typeof SAMPLE_TEMPLATES)[]).forEach((kind) => {
       const r = parseCSV(SAMPLE_TEMPLATES[kind], kind);

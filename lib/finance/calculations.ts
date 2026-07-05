@@ -355,3 +355,149 @@ export function calculateMarginAtRisk(
 ): number {
   return round(Math.max(0, currentGrossProfit - scenarioGrossProfit), 2);
 }
+
+// ─────────────────────────────────────────────────────────────
+// §14 named helpers — additional deterministic functions exposed
+// individually so the calculation library surface matches the spec.
+// All guard against divide-by-zero and return raw + display values.
+// ─────────────────────────────────────────────────────────────
+
+export interface TariffShockResult {
+  baseTariffRate: number;
+  shockedTariffRate: number;
+  baseDutyPerUnit: number;
+  shockedDutyPerUnit: number;
+  dutyIncreasePerUnit: number;
+  baseLandedCostPerUnit: number;
+  shockedLandedCostPerUnit: number;
+  landedCostIncreasePerUnit: number;
+  label: string;
+}
+
+/**
+ * Apply a tariff-point shock to a single item and return the before/after
+ * duty and landed-cost impact. `tariffPointIncrease` is added to the rate
+ * (e.g. 0.10 adds 10 points). Non-supplier adders are held constant.
+ */
+export function calculateTariffShock(params: {
+  supplierUnitCost: number;
+  baseTariffRate: number;
+  nonSupplierLandedAdders: number; // freight + insurance + fees, per unit
+  tariffPointIncrease: number;
+}): TariffShockResult {
+  const base = clamp01(params.baseTariffRate);
+  const shocked = clamp01(base + Math.max(0, params.tariffPointIncrease));
+  const cost = Math.max(0, params.supplierUnitCost);
+  const adders = Math.max(0, params.nonSupplierLandedAdders);
+  const baseDuty = round(cost * base, 4);
+  const shockedDuty = round(cost * shocked, 4);
+  const baseLanded = round(cost + adders + baseDuty, 4);
+  const shockedLanded = round(cost + adders + shockedDuty, 4);
+  return {
+    baseTariffRate: base,
+    shockedTariffRate: shocked,
+    baseDutyPerUnit: baseDuty,
+    shockedDutyPerUnit: shockedDuty,
+    dutyIncreasePerUnit: round(shockedDuty - baseDuty, 4),
+    baseLandedCostPerUnit: baseLanded,
+    shockedLandedCostPerUnit: shockedLanded,
+    landedCostIncreasePerUnit: round(shockedLanded - baseLanded, 4),
+    label: `+${(Math.max(0, params.tariffPointIncrease) * 100).toFixed(0)}pt tariff shock`,
+  };
+}
+
+/**
+ * Transparent 0..100 supplier quality score (higher = better). Weighted blend
+ * of operational scores with a defect penalty. Mirrors the supplier-ROI engine.
+ */
+export function calculateSupplierScore(s: {
+  reliabilityScore: number;
+  qualityScore: number;
+  complianceScore: number;
+  communicationScore: number;
+  capacityScore: number;
+  defectRate: number;
+}): number {
+  const score =
+    s.reliabilityScore * 0.3 +
+    s.qualityScore * 0.25 +
+    s.complianceScore * 0.15 +
+    s.communicationScore * 0.1 +
+    s.capacityScore * 0.1 +
+    Math.max(0, 100 - clamp01(s.defectRate) * 1000) * 0.1;
+  return Math.round(Math.min(100, Math.max(0, score)));
+}
+
+/**
+ * Transparent 0..100 supplier RISK score (higher = worse). Complements
+ * calculateSupplierScore; used where a risk figure is preferred to a quality one.
+ */
+export function calculateSupplierRisk(s: {
+  reliabilityScore: number;
+  complianceScore: number;
+  defectRate: number;
+  averageLeadTimeDays: number;
+  depositRequiredPercent: number;
+  countryExposure?: number; // 0..1
+}): number {
+  const risk =
+    (100 - s.reliabilityScore) * 0.28 +
+    clamp01(s.defectRate) * 100 * 5 +
+    (s.averageLeadTimeDays > 45 ? 15 : s.averageLeadTimeDays > 30 ? 8 : 0) +
+    (100 - s.complianceScore) * 0.15 +
+    clamp01(s.depositRequiredPercent) * 12 +
+    clamp01(s.countryExposure ?? 0) * 12;
+  return Math.round(Math.min(100, Math.max(0, risk)));
+}
+
+/**
+ * Recommended PO quantity so created inventory days stay within the target.
+ * Returns both the recommended quantity and the implied cut factor.
+ */
+export function calculateRecommendedPOQuantity(params: {
+  orderQuantity: number;
+  monthlyDemand: number;
+  targetInventoryDays: number;
+  existingInventory?: number;
+}): { recommendedQuantity: number; cutFactor: number; currentInventoryDays: number } {
+  const dailyDemand = safeDiv(params.monthlyDemand, 30, 0);
+  const existing = Math.max(0, params.existingInventory ?? 0);
+  const currentInventoryDays =
+    dailyDemand > 0 ? round((existing + params.orderQuantity) / dailyDemand, 1) : Infinity;
+  if (dailyDemand <= 0) {
+    return { recommendedQuantity: 0, cutFactor: 0, currentInventoryDays };
+  }
+  const maxUnits = Math.max(0, params.targetInventoryDays * dailyDemand - existing);
+  const recommendedQuantity = Math.min(params.orderQuantity, Math.round(maxUnits));
+  const cutFactor = round(safeDiv(recommendedQuantity, Math.max(1, params.orderQuantity), 1), 3);
+  return { recommendedQuantity, cutFactor, currentInventoryDays };
+}
+
+/** Customer annual contribution margin = gross profit − cost to serve. */
+export function calculateCustomerContributionMargin(params: {
+  annualRevenue: number;
+  grossMargin: number;
+  serviceCost: number;
+}): { contributionMargin: number; contributionMarginPercent: number } {
+  const grossProfit = Math.max(0, params.annualRevenue) * clamp01(params.grossMargin);
+  const contributionMargin = round(grossProfit - Math.max(0, params.serviceCost), 2);
+  return {
+    contributionMargin,
+    contributionMarginPercent: round(safeDiv(contributionMargin, Math.max(1, params.annualRevenue), 0), 4),
+  };
+}
+
+/**
+ * Price increase (0..1) a customer needs given a blended cost increase, scaled
+ * by their COGS share and tariff exposure (so exposed, thin-margin accounts
+ * need more — never a flat rate).
+ */
+export function calculateCustomerPriceIncrease(params: {
+  costIncreasePercent: number; // 0..1 blended landed-cost increase
+  grossMargin: number;
+  tariffExposure: number; // 0..1
+}): number {
+  const cogsShare = 1 - clamp01(params.grossMargin);
+  const exposure = clamp01(params.tariffExposure);
+  return round(clamp01(clamp01(params.costIncreasePercent) * cogsShare * (0.5 + exposure)), 4);
+}
