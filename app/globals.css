@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-base-950 text-ink antialiased;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(124, 140, 255, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(62, 199, 224, 0.05), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* Thin premium scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-base-600 rounded-full;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-base-500;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-white/[0.06] bg-base-850/80 shadow-card backdrop-blur-sm;
+  }
+  .card-hover {
+    @apply transition-colors hover:border-white/[0.12];
+  }
+  .stat-label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-ink-faint;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+  .input {
+    @apply w-full rounded-lg border border-white/[0.08] bg-base-900 px-3 py-2 text-sm text-ink
+      placeholder:text-ink-faint focus:border-slateaccent/60 focus:outline-none focus:ring-1 focus:ring-slateaccent/40;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-ink-muted;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
+      transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-slateaccent text-white hover:bg-slateaccent/85;
+  }
+  .btn-ghost {
+    @apply btn border border-white/[0.08] bg-base-800 text-ink hover:bg-base-700;
+  }
+  .btn-amber {
+    @apply btn bg-amber text-base-950 hover:bg-amber/85;
+  }
+}
+
+/* Print-friendly reports */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-page {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    background: white !important;
+    color: black !important;
+    break-inside: avoid;
+  }
+}

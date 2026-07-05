@@ -1,0 +1,14 @@
+[
+  {
+    "id": "pricing-not-flat",
+    "description": "Customers with different exposure/margin need different increases",
+    "costIncreasePercent": 0.12,
+    "expect": { "distinctIncreases": true, "allNonNegative": true }
+  },
+  {
+    "id": "pricing-schema-valid",
+    "description": "Mock pricing recommendation validates and includes confidence + disclaimer",
+    "input": { "requiredPriceIncrease": 0.09, "recommendedStrategy": "add_surcharge" },
+    "expect": { "schema": "pricing", "hasConfidence": true, "hasDisclaimer": true }
+  }
+]

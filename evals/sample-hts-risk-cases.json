@@ -1,0 +1,25 @@
+[
+  {
+    "id": "hts-vague-box",
+    "description": "Vague 'decorative storage box' with no materials or use",
+    "input": { "descriptionQualityScore": 25, "riskLevel": "high" },
+    "expect": {
+      "schema": "hts",
+      "minRiskLevel": "medium",
+      "mustIncludeDisclaimerKeyword": "customs broker",
+      "mustNotProvideFinalClassification": true,
+      "minBrokerQuestions": 1
+    }
+  },
+  {
+    "id": "hts-detailed-steel-shelf",
+    "description": "Detailed steel shelving with materials, use, HTS code",
+    "input": { "descriptionQualityScore": 90, "riskLevel": "low" },
+    "expect": {
+      "schema": "hts",
+      "mustIncludeDisclaimerKeyword": "customs broker",
+      "mustNotProvideFinalClassification": true,
+      "minDocumentationChecklist": 1
+    }
+  }
+]

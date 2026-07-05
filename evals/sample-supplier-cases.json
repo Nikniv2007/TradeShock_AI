@@ -1,0 +1,12 @@
+[
+  {
+    "id": "supplier-not-cheapest-wins",
+    "description": "A pricier but reliable supplier should beat a cheaper defective one overall",
+    "options": [
+      { "id": "cheap", "name": "CheapCo", "unitCost": 5, "leadTimeDays": 60, "paymentTerms": "prepaid", "depositPercent": 0.5, "defectRate": 0.15, "reliabilityScore": 55, "qualityScore": 55, "complianceScore": 50, "currencyRisk": "high", "isCurrent": false },
+      { "id": "solid", "name": "SolidCo", "unitCost": 6.5, "leadTimeDays": 25, "paymentTerms": "net_30", "depositPercent": 0.1, "defectRate": 0.02, "reliabilityScore": 90, "qualityScore": 90, "complianceScore": 90, "currencyRisk": "low", "isCurrent": true }
+    ],
+    "ctx": { "sellingPrice": 20, "targetMargin": 0.35, "monthlyDemand": 300, "financingCostPercent": 0.11 },
+    "expect": { "bestOverallName": "SolidCo", "bestByCashFlowName": "SolidCo" }
+  }
+]

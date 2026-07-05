@@ -1,0 +1,14 @@
+[
+  {
+    "id": "po-critical-highcash-lowmargin",
+    "description": "High-cash, high-deposit, low-forecast PO must be elevated/critical",
+    "poIndex": 4,
+    "expect": { "minRiskScore": 45, "recommendationIn": ["revise", "hold"] }
+  },
+  {
+    "id": "po-safe-shortlead-net30",
+    "description": "Short lead time, net-30, healthy cash PO should be lower risk",
+    "poIndex": 0,
+    "expect": { "maxRiskScore": 70, "recommendationIn": ["approve", "revise"] }
+  }
+]
